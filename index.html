@@ -772,7 +772,7 @@
             <button class="primary-btn" id="confirmOrder">确认菜单并发送</button>
             <button class="soft-btn" id="copyOrder">复制订单文案</button>
           </div>
-          <p class="submit-hint" id="submitHint" hidden>订单会直接写入 Google 表格。当前还需要配置一次 Google Apps Script 接收地址。</p>
+          <p class="submit-hint" id="submitHint" hidden>订单会直接写入 Google 表格。提交后如果网络较慢，可以稍后刷新表格查看。</p>
         </aside>
       </div>
     </section>
@@ -783,7 +783,7 @@
   <div class="toast" id="toast">已更新</div>
 
   <script>
-    const GOOGLE_SHEET_ENDPOINT = "";
+    const GOOGLE_SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbz-eHvChujZd8PHrFz8Vq1IewcmtH58KfqaBl2R9EPBzhGso9KbdPMYBpy_5dyviE-9/exec";
 
     const state = {
       main: "",
