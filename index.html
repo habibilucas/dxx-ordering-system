@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DXX的点餐系统</title>
+  <style>
+    :root {
+      --rose: #74c9ff;
+      --rose-deep: #2f8fd3;
+      --cream: #f4fbff;
+      --blue: #d8f1ff;
+      --mint: #d9f7f0;
+      --ink: #25384a;
+      --muted: #60758a;
+      --white: rgba(255, 255, 255, 0.84);
+      --line: rgba(47, 143, 211, 0.2);
+      --shadow: 0 18px 50px rgba(47, 143, 211, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 12% 12%, rgba(116, 201, 255, 0.34), transparent 28%),
+        radial-gradient(circle at 86% 8%, rgba(189, 231, 255, 0.72), transparent 30%),
+        radial-gradient(circle at 80% 82%, rgba(200, 243, 223, 0.62), transparent 30%),
+        linear-gradient(135deg, #f4fbff 0%, #dff3ff 48%, #f7fcff 100%);
+      overflow-x: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .floating-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .floaty {
+      position: absolute;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      color: rgba(47, 143, 211, 0.55);
+      font-size: 28px;
+      animation: drift 10s ease-in-out infinite;
+    }
+
+    .floaty:nth-child(1) { left: 7%; top: 14%; animation-delay: 0s; }
+    .floaty:nth-child(2) { left: 87%; top: 18%; animation-delay: 1.3s; }
+    .floaty:nth-child(3) { left: 12%; top: 72%; animation-delay: 2.1s; }
+    .floaty:nth-child(4) { left: 76%; top: 67%; animation-delay: 3.3s; }
+    .floaty:nth-child(5) { left: 52%; top: 8%; animation-delay: 4s; }
+    .floaty:nth-child(6) { left: 38%; top: 86%; animation-delay: 5s; }
+
+    @keyframes drift {
+      0%, 100% { transform: translateY(0) rotate(-5deg); opacity: 0.6; }
+      50% { transform: translateY(-20px) rotate(8deg); opacity: 0.9; }
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 52px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      color: var(--rose-deep);
+    }
+
+    .status-pill {
+      padding: 9px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.62);
+      backdrop-filter: blur(16px);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .hero {
+      min-height: calc(100vh - 120px);
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+      align-items: center;
+      gap: 36px;
+      padding: 38px 0 54px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      margin-bottom: 18px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      color: var(--rose-deep);
+      font-weight: 700;
+      box-shadow: 0 10px 30px rgba(47, 143, 211, 0.09);
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 660px;
+      font-size: clamp(42px, 7vw, 86px);
+      line-height: 1.03;
+      letter-spacing: 0;
+      color: #20364d;
+    }
+
+    .hero p {
+      max-width: 560px;
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .primary-btn,
+    .soft-btn {
+      min-height: 48px;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 20px;
+      font-weight: 800;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .primary-btn {
+      color: #fff;
+      background: linear-gradient(135deg, var(--rose), var(--rose-deep));
+      box-shadow: 0 15px 34px rgba(47, 143, 211, 0.32);
+    }
+
+    .soft-btn {
+      color: var(--rose-deep);
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+    }
+
+    .primary-btn:hover,
+    .soft-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .hero-plate {
+      position: relative;
+      min-height: 420px;
+      border-radius: 34px;
+      padding: 28px;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.52)),
+        radial-gradient(circle at 60% 30%, rgba(116, 201, 255, 0.3), transparent 40%);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .plate-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-weight: 800;
+    }
+
+    .mini-ticket {
+      position: relative;
+      padding: 20px;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 16px 34px rgba(75, 51, 64, 0.1);
+    }
+
+    .mini-ticket + .mini-ticket {
+      margin-top: 14px;
+    }
+
+    .mini-ticket strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--rose-deep);
+    }
+
+    .mini-ticket span {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .section {
+      padding: 34px 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(26px, 4vw, 42px);
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      max-width: 430px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .panel {
+      border-radius: 30px;
+      padding: 22px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .menu-card {
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid var(--line);
+    }
+
+    .menu-card h3 {
+      margin: 0 0 14px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      min-height: 40px;
+      border: 1px solid rgba(47, 143, 211, 0.22);
+      border-radius: 999px;
+      padding: 9px 13px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.76);
+      transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+    }
+
+    .chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(47, 143, 211, 0.52);
+    }
+
+    .chip.selected {
+      color: #fff;
+      background: var(--rose-deep);
+      border-color: var(--rose-deep);
+      box-shadow: 0 8px 18px rgba(47, 143, 211, 0.24);
+    }
+
+    .custom-note {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 12px;
+      padding: 12px 15px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      outline: 0;
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    .recommend-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 0.9fr);
+      gap: 18px;
+    }
+
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .recommend-box {
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px;
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at 90% 12%, rgba(189, 231, 255, 0.78), transparent 36%),
+        #fff;
+      border: 1px solid var(--line);
+    }
+
+    .recommend-text {
+      margin: 0;
+      font-size: 23px;
+      font-weight: 900;
+      line-height: 1.55;
+    }
+
+    .recommend-sub {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .order-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .summary {
+      display: grid;
+      gap: 12px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(47, 143, 211, 0.16);
+    }
+
+    .summary-row span {
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+
+    .summary-row strong {
+      text-align: right;
+    }
+
+    .love-note {
+      min-height: 100%;
+      padding: 24px;
+      border-radius: 24px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(47, 143, 211, 0.94), rgba(116, 201, 255, 0.82)),
+        radial-gradient(circle at 85% 15%, rgba(255, 247, 232, 0.7), transparent 30%);
+      box-shadow: 0 18px 42px rgba(47, 143, 211, 0.3);
+    }
+
+    .love-note h3 {
+      margin: 0 0 12px;
+      font-size: 26px;
+    }
+
+    .love-note p {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .footer-note {
+      margin-top: 34px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      z-index: 20;
+      max-width: calc(100% - 32px);
+      padding: 12px 16px;
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(75, 51, 64, 0.9);
+      box-shadow: 0 16px 34px rgba(75, 51, 64, 0.24);
+      transform: translate(-50%, 20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 860px) {
+      .hero,
+      .recommend-layout,
+      .order-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 20px;
+      }
+
+      .hero-plate {
+        min-height: auto;
+      }
+
+      .menu-grid,
+      .mood-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .app {
+        width: min(100% - 22px, 1120px);
+        padding-top: 16px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .status-pill {
+        white-space: normal;
+      }
+
+      .panel {
+        padding: 14px;
+        border-radius: 24px;
+      }
+
+      .menu-card,
+      .recommend-box,
+      .love-note {
+        border-radius: 20px;
+        padding: 16px;
+      }
+
+      .primary-btn,
+      .soft-btn {
+        width: 100%;
+      }
+
+      .hero-actions,
+      .actions-row {
+        width: 100%;
+      }
+
+      .summary-row {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .summary-row strong {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="floating-bg" aria-hidden="true">
+    <div class="floaty">✦</div>
+    <div class="floaty">✦</div>
+    <div class="floaty">☕</div>
+    <div class="floaty">🍰</div>
+    <div class="floaty">★</div>
+    <div class="floaty">🥤</div>
+  </div>
+
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">★</div>
+        <span>DXX的点餐系统</span>
+      </div>
+      <div class="status-pill">今日服务员：Luke · 随叫随到版</div>
+    </header>
+
+    <section class="hero" id="home">
+      <div>
+        <div class="eyebrow">今日限定 · DXX专属使用</div>
+        <h1>今天想吃什么呀？</h1>
+        <p>请选择你的今日快乐。系统会认真记录主食、饮品、甜品和小备注，最后生成一张不可取消的专属订单。</p>
+        <div class="hero-actions">
+          <button class="primary-btn" data-scroll="#order">开始点餐</button>
+          <button class="soft-btn" data-scroll="#recommend">先让系统推荐</button>
+        </div>
+      </div>
+
+      <aside class="hero-plate" aria-label="今日示例订单">
+        <div class="plate-title">
+          <span>今日快乐预览</span>
+          <span>NO. 0520</span>
+        </div>
+        <div class="mini-ticket">
+          <strong>心情点餐</strong>
+          <span>如果今天有点累，就安排热乎乎的一餐，再附赠陪走一小段路。</span>
+        </div>
+        <div class="mini-ticket">
+          <strong>随机投喂</strong>
+          <span>选择困难的时候，系统会替你拍板。你负责点头，我负责安排。</span>
+        </div>
+        <div class="mini-ticket">
+          <strong>专属备注</strong>
+          <span>少辣、不要香菜、想吃贵一点的、想要人陪吃，都可以写进订单。</span>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section" id="order">
+      <div class="section-head">
+        <div>
+          <h2>选择今日菜单</h2>
+        </div>
+        <p>每个分类可以选一个，特殊需求可以多选。选好后点击生成订单。</p>
+      </div>
+
+      <div class="panel">
+        <div class="menu-grid">
+          <div class="menu-card" data-group="main">
+            <h3>🍲 主食区</h3>
+            <div class="chips">
+              <button class="chip">湘味小炒菜</button>
+              <button class="chip">有盐有味川菜馆</button>
+              <button class="chip">小锅串串</button>
+              <button class="chip">蜀砂锅</button>
+              <button class="chip">荣盛和</button>
+              <button class="chip">乌洋芋</button>
+              <button class="chip">花雕醉鸡</button>
+              <button class="chip">小桥米线</button>
+              <button class="chip">云贵川山野小炒菜</button>
+              <button class="chip">点妈混沌</button>
+              <button class="chip">烤肉</button>
+              <button class="chip">麦当劳KFC</button>
+              <button class="chip">科创（素菜自选，二楼自选菜，小炒）</button>
+              <button class="chip">银华（三楼自选，盖浇饭）</button>
+              <button class="chip">学子（二楼米粉，三楼轻食，串串，东南亚菜，外婆炒饭）</button>
+            </div>
+          </div>
+
+          <div class="menu-card" data-group="drink">
+            <h3>🥤 饮品区</h3>
+            <div class="chips">
+              <button class="chip">蜜雪（小众宝藏，蜜桃四季春，多肉葡萄）</button>
+              <button class="chip">书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰）</button>
+              <button class="chip">coco（杨枝甘露）</button>
+              <button class="chip">库迪（杨枝甘露）</button>
+              <button class="chip">瑞幸（杨枝甘露）</button>
+              <button class="chip">李若桃</button>
+            </div>
+          </div>
+
+          <div class="menu-card" data-group="dessert">
+            <h3>🍮 甜品区</h3>
+            <div class="chips">
+              <button class="chip">提拉米苏小蛋糕</button>
+              <button class="chip">脏脏包</button>
+              <button class="chip">冰面包</button>
+              <button class="chip">泡芙</button>
+            </div>
+          </div>
+
+          <div class="menu-card" data-group="needs" data-multiple="true">
+            <h3>✨ 特殊需求</h3>
+            <div class="chips">
+              <button class="chip">不要辣</button>
+              <button class="chip">少辣</button>
+              <button class="chip">超级辣</button>
+              <button class="chip">不要香菜</button>
+              <button class="chip">想吃热的</button>
+              <button class="chip">想吃清淡的</button>
+              <button class="chip">想吃贵一点的</button>
+              <button class="chip">想吃你陪我吃的</button>
+            </div>
+            <input class="custom-note" id="customNote" type="text" placeholder="还想补充什么？比如：要你早点出现。" />
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button class="primary-btn" id="makeOrder">生成专属订单</button>
+          <button class="soft-btn" id="clearOrder">重新选择</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="recommend">
+      <div class="section-head">
+        <div>
+          <h2>心情推荐</h2>
+        </div>
+        <p>先选今天的心情，或者直接让系统随机投喂。</p>
+      </div>
+
+      <div class="panel recommend-layout">
+        <div class="menu-card">
+          <h3>💌 今天是什么状态？</h3>
+          <div class="mood-grid" id="moodGrid">
+            <button class="chip" data-mood="开心">开心</button>
+            <button class="chip" data-mood="有点累">有点累</button>
+            <button class="chip" data-mood="不想动">不想动</button>
+            <button class="chip" data-mood="想被哄">想被哄</button>
+            <button class="chip" data-mood="想吃辣">想吃辣</button>
+            <button class="chip" data-mood="想吃甜">想吃甜</button>
+            <button class="chip" data-mood="选择困难">选择困难</button>
+          </div>
+          <div class="actions-row">
+            <button class="primary-btn" id="randomPick">随机投喂</button>
+            <button class="soft-btn" id="applyRecommend">加入订单</button>
+          </div>
+        </div>
+
+        <div class="recommend-box">
+          <div>
+            <p class="recommend-text" id="recommendText">请选择一个心情，系统马上安排今日快乐。</p>
+            <p class="recommend-sub" id="recommendSub">推荐结果可以一键加入订单，也可以继续自己选。</p>
+          </div>
+          <button class="soft-btn" data-scroll="#result">查看订单结果</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="result">
+      <div class="section-head">
+        <div>
+          <h2>专属订单</h2>
+        </div>
+        <p>这张订单的隐藏条款是：请保持开心，我马上出现。</p>
+      </div>
+
+      <div class="panel order-layout">
+        <div class="summary" aria-live="polite">
+          <div class="summary-row">
+            <span>今日菜单</span>
+            <strong id="summaryMain">还没有选择</strong>
+          </div>
+          <div class="summary-row">
+            <span>饮品</span>
+            <strong id="summaryDrink">还没有选择</strong>
+          </div>
+          <div class="summary-row">
+            <span>甜品</span>
+            <strong id="summaryDessert">还没有选择</strong>
+          </div>
+          <div class="summary-row">
+            <span>备注</span>
+            <strong id="summaryNeeds">等待补充</strong>
+          </div>
+          <div class="summary-row">
+            <span>附加服务</span>
+            <strong>陪吃、哄人、拍照、认真听你说话</strong>
+          </div>
+        </div>
+
+        <aside class="love-note">
+          <h3>订单已收到</h3>
+          <p id="loveLine">正在安排专属骑手 Luke 为你服务。本订单不可取消，因为我已经想见你了。</p>
+          <div class="actions-row">
+            <button class="soft-btn" id="copyOrder">复制订单文案</button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <p class="footer-note">Made for DXX · 今日份快乐已自动加满</p>
+  </main>
+
+  <div class="toast" id="toast">已更新</div>
+
+  <script>
+    const state = {
+      main: "",
+      drink: "",
+      dessert: "",
+      needs: [],
+      note: "",
+      recommendation: null
+    };
+
+    const moodRecommendations = {
+      "开心": { main: "烤肉", drink: "瑞幸（杨枝甘露）", dessert: "提拉米苏小蛋糕", text: "今天很开心，推荐：烤肉 + 瑞幸（杨枝甘露） + 提拉米苏小蛋糕。快乐要乘二。" },
+      "有点累": { main: "蜀砂锅", drink: "书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰）", dessert: "冰面包", text: "今天有点累，推荐：热乎乎的蜀砂锅 + 书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰） + 冰面包。先把你照顾好。" },
+      "不想动": { main: "麦当劳KFC", drink: "蜜雪（小众宝藏，蜜桃四季春，多肉葡萄）", dessert: "脏脏包", text: "今天不想动，推荐：麦当劳KFC + 蜜雪（小众宝藏，蜜桃四季春，多肉葡萄） + 脏脏包。你躺好，我来决定。" },
+      "想被哄": { main: "小锅串串", drink: "coco（杨枝甘露）", dessert: "泡芙", text: "今天想被哄，推荐：小锅串串 + coco（杨枝甘露） + 泡芙，并附赠本人陪吃。" },
+      "想吃辣": { main: "有盐有味川菜馆", drink: "李若桃", dessert: "冰面包", text: "今天想吃辣，推荐：有盐有味川菜馆 + 李若桃 + 冰面包。辣完也要被温柔收尾。" },
+      "想吃甜": { main: "小桥米线", drink: "书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰）", dessert: "提拉米苏小蛋糕", text: "今天想吃甜，推荐：小桥米线 + 书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰） + 提拉米苏小蛋糕。甜度刚好，不许皱眉。" },
+      "选择困难": { main: "湘味小炒菜", drink: "库迪（杨枝甘露）", dessert: "泡芙", text: "选择困难，系统决定：湘味小炒菜 + 库迪（杨枝甘露） + 泡芙。今天听系统的。" }
+    };
+
+    const randomMenus = [
+      { main: "荣盛和", drink: "蜜雪（小众宝藏，蜜桃四季春，多肉葡萄）", dessert: "泡芙", text: "今日推荐：荣盛和 + 蜜雪（小众宝藏，蜜桃四季春，多肉葡萄） + 泡芙。" },
+      { main: "乌洋芋", drink: "书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰）", dessert: "冰面包", text: "今日推荐：乌洋芋 + 书亦（烧仙草，大杯橙汁，杨枝甘露，西瓜椰椰） + 冰面包。" },
+      { main: "花雕醉鸡", drink: "coco（杨枝甘露）", dessert: "提拉米苏小蛋糕", text: "今日推荐：花雕醉鸡 + coco（杨枝甘露） + 提拉米苏小蛋糕。" },
+      { main: "云贵川山野小炒菜", drink: "库迪（杨枝甘露）", dessert: "脏脏包", text: "今日推荐：云贵川山野小炒菜 + 库迪（杨枝甘露） + 脏脏包。" },
+      { main: "点妈混沌", drink: "瑞幸（杨枝甘露）", dessert: "泡芙", text: "今日推荐：点妈混沌 + 瑞幸（杨枝甘露） + 泡芙。" },
+      { main: "学子（二楼米粉，三楼轻食，串串，东南亚菜，外婆炒饭）", drink: "李若桃", dessert: "冰面包", text: "今日推荐：你请客，我负责开心。" }
+    ];
+
+    const loveLines = [
+      "你的今日快乐已下单，请保持开心，我马上出现。",
+      "订单已收到，正在安排专属骑手 Luke 为你服务。",
+      "本订单不可取消，因为我已经想见你了。",
+      "今天的主线任务：吃饱、开心、被好好陪着。",
+      "投喂计划已启动，你只需要负责可爱和点头。"
+    ];
+
+    const byId = (id) => document.getElementById(id);
+    const pick = (items) => items[Math.floor(Math.random() * items.length)];
+
+    function showToast(message) {
+      const toast = byId("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    function setSelectedButton(group, value) {
+      const card = document.querySelector(`[data-group="${group}"]`);
+      if (!card) return;
+      card.querySelectorAll(".chip").forEach((button) => {
+        button.classList.toggle("selected", button.textContent.trim() === value);
+      });
+    }
+
+    function updateSummary() {
+      state.note = byId("customNote").value.trim();
+      const needsText = [...state.needs, state.note].filter(Boolean).join("、");
+
+      byId("summaryMain").textContent = state.main || "还没有选择";
+      byId("summaryDrink").textContent = state.drink || "还没有选择";
+      byId("summaryDessert").textContent = state.dessert || "还没有选择";
+      byId("summaryNeeds").textContent = needsText || "等待补充";
+      byId("loveLine").textContent = pick(loveLines);
+    }
+
+    function applyMenu(menu) {
+      state.main = menu.main;
+      state.drink = menu.drink;
+      state.dessert = menu.dessert;
+      setSelectedButton("main", menu.main);
+      setSelectedButton("drink", menu.drink);
+      setSelectedButton("dessert", menu.dessert);
+      updateSummary();
+    }
+
+    document.querySelectorAll("[data-scroll]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelector(button.dataset.scroll).scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    document.querySelectorAll(".menu-card[data-group]").forEach((card) => {
+      const group = card.dataset.group;
+      const multiple = card.dataset.multiple === "true";
+
+      card.querySelectorAll(".chip").forEach((button) => {
+        button.addEventListener("click", () => {
+          const value = button.textContent.trim();
+          if (multiple) {
+            button.classList.toggle("selected");
+            state[group] = [...card.querySelectorAll(".chip.selected")].map((item) => item.textContent.trim());
+          } else {
+            card.querySelectorAll(".chip").forEach((item) => item.classList.remove("selected"));
+            button.classList.add("selected");
+            state[group] = value;
+          }
+          updateSummary();
+        });
+      });
+    });
+
+    byId("customNote").addEventListener("input", updateSummary);
+
+    byId("moodGrid").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-mood]");
+      if (!button) return;
+
+      byId("moodGrid").querySelectorAll(".chip").forEach((item) => item.classList.remove("selected"));
+      button.classList.add("selected");
+      const result = moodRecommendations[button.dataset.mood];
+      state.recommendation = result;
+      byId("recommendText").textContent = result.text;
+      byId("recommendSub").textContent = "这份推荐已经准备好，可以一键加入订单。";
+      showToast("心情推荐已生成");
+    });
+
+    byId("randomPick").addEventListener("click", () => {
+      const result = pick(randomMenus);
+      state.recommendation = result;
+      byId("moodGrid").querySelectorAll(".chip").forEach((item) => item.classList.remove("selected"));
+      byId("recommendText").textContent = result.text;
+      byId("recommendSub").textContent = "系统已拍板，当然你也可以继续撒娇改菜单。";
+      showToast("随机投喂完成");
+    });
+
+    byId("applyRecommend").addEventListener("click", () => {
+      if (!state.recommendation) {
+        showToast("先选心情或随机一下");
+        return;
+      }
+      applyMenu(state.recommendation);
+      showToast("推荐已加入订单");
+      byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    byId("makeOrder").addEventListener("click", () => {
+      updateSummary();
+      showToast("专属订单已生成");
+      byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    byId("clearOrder").addEventListener("click", () => {
+      state.main = "";
+      state.drink = "";
+      state.dessert = "";
+      state.needs = [];
+      state.note = "";
+      document.querySelectorAll(".menu-card[data-group] .chip").forEach((button) => button.classList.remove("selected"));
+      byId("customNote").value = "";
+      updateSummary();
+      showToast("已经清空，可以重新点餐");
+    });
+
+    byId("copyOrder").addEventListener("click", async () => {
+      updateSummary();
+      const text = [
+        "DXX的点餐系统订单",
+        `今日菜单：${byId("summaryMain").textContent}`,
+        `饮品：${byId("summaryDrink").textContent}`,
+        `甜品：${byId("summaryDessert").textContent}`,
+        `备注：${byId("summaryNeeds").textContent}`,
+        "附加服务：陪吃、哄人、拍照、认真听你说话",
+        byId("loveLine").textContent
+      ].join("\n");
+
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("订单文案已复制");
+      } catch (error) {
+        showToast("浏览器不支持自动复制");
+      }
+    });
+
+    updateSummary();
+  </script>
+</body>
+</html>
