@@ -771,9 +771,8 @@
           <div class="actions-row">
             <button class="primary-btn" id="confirmOrder">确认菜单并发送</button>
             <button class="soft-btn" id="copyOrder">复制订单文案</button>
-            <a class="soft-btn" id="emailFallback" href="#" hidden>邮件备用发送</a>
           </div>
-          <p class="submit-hint" id="submitHint" hidden>已提交给邮件转发服务。首次使用可能需要先在 uestcych@outlook.com 收到并点击激活邮件；如果没收到，请检查垃圾箱/拦截箱，或使用备用发送。</p>
+          <p class="submit-hint" id="submitHint" hidden>订单会直接写入 Google 表格。当前还需要配置一次 Google Apps Script 接收地址。</p>
         </aside>
       </div>
     </section>
@@ -781,24 +780,11 @@
     <p class="footer-note">Made for DXX · 今日份快乐已自动加满</p>
   </main>
 
-  <iframe name="submitFrame" title="订单提交结果" hidden></iframe>
-  <form id="orderForm" action="https://formsubmit.co/uestcych@outlook.com" method="POST" target="submitFrame" hidden>
-    <input type="hidden" name="_subject" value="DXX的点餐系统新订单" />
-    <input type="hidden" name="_template" value="table" />
-    <input type="hidden" name="_captcha" value="false" />
-    <input type="hidden" name="今日菜单" id="fieldMain" />
-    <input type="hidden" name="饮品" id="fieldDrink" />
-    <input type="hidden" name="甜品" id="fieldDessert" />
-    <input type="hidden" name="备注" id="fieldNeeds" />
-    <input type="hidden" name="附加服务" id="fieldService" />
-    <input type="hidden" name="甜甜的话" id="fieldLoveLine" />
-    <input type="hidden" name="提交时间" id="fieldSubmittedAt" />
-    <input type="hidden" name="完整订单" id="fieldOrderText" />
-  </form>
-
   <div class="toast" id="toast">已更新</div>
 
   <script>
+    const GOOGLE_SHEET_ENDPOINT = "";
+
     const state = {
       main: "",
       drink: "",
@@ -907,40 +893,54 @@
       ].join("\n");
     }
 
-    function updateFallbackEmail() {
-      const subject = encodeURIComponent("DXX的点餐系统新订单");
-      const body = encodeURIComponent(buildOrderText());
-      const fallback = byId("emailFallback");
-      fallback.href = `mailto:uestcych@outlook.com?subject=${subject}&body=${body}`;
-      fallback.hidden = false;
-    }
-
-    function submitOrder() {
+    function buildOrderPayload() {
       updateSummary();
 
-      const main = byId("summaryMain").textContent;
-      const drink = byId("summaryDrink").textContent;
-      const dessert = byId("summaryDessert").textContent;
+      return {
+        submittedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+        main: byId("summaryMain").textContent,
+        drink: byId("summaryDrink").textContent,
+        dessert: byId("summaryDessert").textContent,
+        needs: byId("summaryNeeds").textContent,
+        service: "陪吃、哄人、拍照、认真听你说话",
+        loveLine: byId("loveLine").textContent,
+        orderText: buildOrderText()
+      };
+    }
 
-      if ([main, drink, dessert].some((value) => value === "还没有选择")) {
+    async function submitOrder() {
+      const payload = buildOrderPayload();
+
+      if ([payload.main, payload.drink, payload.dessert].some((value) => value === "还没有选择")) {
         showToast("主食、饮品、甜品都选好后再确认");
         return;
       }
 
-      byId("fieldMain").value = main;
-      byId("fieldDrink").value = drink;
-      byId("fieldDessert").value = dessert;
-      byId("fieldNeeds").value = byId("summaryNeeds").textContent;
-      byId("fieldService").value = "陪吃、哄人、拍照、认真听你说话";
-      byId("fieldLoveLine").value = byId("loveLine").textContent;
-      byId("fieldSubmittedAt").value = new Date().toLocaleString("zh-CN", { hour12: false });
-      byId("fieldOrderText").value = buildOrderText();
+      if (!GOOGLE_SHEET_ENDPOINT) {
+        byId("submitHint").hidden = false;
+        showToast("还未配置 Google 表格接收地址");
+        byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
 
-      updateFallbackEmail();
-      byId("orderForm").submit();
-      byId("submitHint").hidden = false;
-      showToast("已提交给转发服务，请留意邮箱激活/收件情况");
-      byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+      try {
+        await fetch(GOOGLE_SHEET_ENDPOINT, {
+          method: "POST",
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
+        byId("submitHint").textContent = "订单已提交到 Google 表格。如果网络较慢，可以稍后刷新表格查看。";
+        byId("submitHint").hidden = false;
+        showToast("订单已提交到 Google 表格");
+        byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (error) {
+        byId("submitHint").textContent = "提交失败，请先复制订单文案备用。";
+        byId("submitHint").hidden = false;
+        showToast("提交失败，请复制订单文案备用");
+      }
     }
 
     document.querySelectorAll("[data-scroll]").forEach((button) => {
@@ -1049,7 +1049,6 @@
       });
       byId("customNote").value = "";
       byId("submitHint").hidden = true;
-      byId("emailFallback").hidden = true;
       updateSummary();
       showToast("已经清空，可以重新点餐");
     });
@@ -1057,7 +1056,6 @@
     byId("copyOrder").addEventListener("click", async () => {
       updateSummary();
       const text = buildOrderText();
-      updateFallbackEmail();
 
       try {
         await navigator.clipboard.writeText(text);
