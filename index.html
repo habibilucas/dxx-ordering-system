@@ -174,11 +174,15 @@
 
     .primary-btn,
     .soft-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       min-height: 48px;
       border: 0;
       border-radius: 999px;
       padding: 13px 20px;
       font-weight: 800;
+      text-decoration: none;
       transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
@@ -448,6 +452,18 @@
       text-align: center;
       line-height: 1.7;
       font-size: 14px;
+    }
+
+    .submit-hint {
+      margin: 14px 0 0;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .submit-hint[hidden],
+    .soft-btn[hidden] {
+      display: none;
     }
 
     .toast {
@@ -755,7 +771,9 @@
           <div class="actions-row">
             <button class="primary-btn" id="confirmOrder">确认菜单并发送</button>
             <button class="soft-btn" id="copyOrder">复制订单文案</button>
+            <a class="soft-btn" id="emailFallback" href="#" hidden>邮件备用发送</a>
           </div>
+          <p class="submit-hint" id="submitHint" hidden>已提交给邮件转发服务。首次使用可能需要先在 1293763038@qq.com 收到并点击激活邮件；如果没收到，请检查垃圾箱/拦截箱，或使用备用发送。</p>
         </aside>
       </div>
     </section>
@@ -889,6 +907,14 @@
       ].join("\n");
     }
 
+    function updateFallbackEmail() {
+      const subject = encodeURIComponent("DXX的点餐系统新订单");
+      const body = encodeURIComponent(buildOrderText());
+      const fallback = byId("emailFallback");
+      fallback.href = `mailto:1293763038@qq.com?subject=${subject}&body=${body}`;
+      fallback.hidden = false;
+    }
+
     function submitOrder() {
       updateSummary();
 
@@ -910,8 +936,10 @@
       byId("fieldSubmittedAt").value = new Date().toLocaleString("zh-CN", { hour12: false });
       byId("fieldOrderText").value = buildOrderText();
 
+      updateFallbackEmail();
       byId("orderForm").submit();
-      showToast("菜单已确认，正在发送给 1293763038@qq.com");
+      byId("submitHint").hidden = false;
+      showToast("已提交给转发服务，请留意邮箱激活/收件情况");
       byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
     }
 
@@ -1020,6 +1048,8 @@
         input.hidden = true;
       });
       byId("customNote").value = "";
+      byId("submitHint").hidden = true;
+      byId("emailFallback").hidden = true;
       updateSummary();
       showToast("已经清空，可以重新点餐");
     });
@@ -1027,6 +1057,7 @@
     byId("copyOrder").addEventListener("click", async () => {
       updateSummary();
       const text = buildOrderText();
+      updateFallbackEmail();
 
       try {
         await navigator.clipboard.writeText(text);
