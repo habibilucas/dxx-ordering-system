@@ -339,6 +339,10 @@
       background: rgba(255, 255, 255, 0.86);
     }
 
+    .custom-note[hidden] {
+      display: none;
+    }
+
     .recommend-layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(300px, 0.9fr);
@@ -621,7 +625,9 @@
               <button class="chip">科创（素菜自选，二楼自选菜，小炒）</button>
               <button class="chip">银华（三楼自选，盖浇饭）</button>
               <button class="chip">学子（二楼米粉，三楼轻食，串串，东南亚菜，外婆炒饭）</button>
+              <button class="chip" data-other-trigger="main">其他</button>
             </div>
+            <input class="custom-note" id="mainOther" data-other-input="main" type="text" placeholder="想吃别的？在这里写下今日主食。" hidden />
           </div>
 
           <div class="menu-card" data-group="drink">
@@ -633,7 +639,9 @@
               <button class="chip">库迪（杨枝甘露）</button>
               <button class="chip">瑞幸（杨枝甘露）</button>
               <button class="chip">李若桃</button>
+              <button class="chip" data-other-trigger="drink">其他</button>
             </div>
+            <input class="custom-note" id="drinkOther" data-other-input="drink" type="text" placeholder="想喝别的？在这里写下今日饮品。" hidden />
           </div>
 
           <div class="menu-card" data-group="dessert">
@@ -643,7 +651,9 @@
               <button class="chip">脏脏包</button>
               <button class="chip">冰面包</button>
               <button class="chip">泡芙</button>
+              <button class="chip" data-other-trigger="dessert">其他</button>
             </div>
+            <input class="custom-note" id="dessertOther" data-other-input="dessert" type="text" placeholder="想吃别的甜食？在这里写下今日甜品。" hidden />
           </div>
 
           <div class="menu-card" data-group="needs" data-multiple="true">
@@ -657,7 +667,9 @@
               <button class="chip">想吃清淡的</button>
               <button class="chip">想吃贵一点的</button>
               <button class="chip">想吃你陪我吃的</button>
+              <button class="chip" data-other-trigger="needs">其他</button>
             </div>
+            <input class="custom-note" id="needsOther" data-other-input="needs" type="text" placeholder="还有别的需求？比如：想吃酸的、想打包。" hidden />
             <input class="custom-note" id="customNote" type="text" placeholder="还想补充什么？比如：要你早点出现。" />
           </div>
         </div>
@@ -758,6 +770,12 @@
       drink: "",
       dessert: "",
       needs: [],
+      other: {
+        main: "",
+        drink: "",
+        dessert: "",
+        needs: ""
+      },
       note: "",
       recommendation: null
     };
@@ -803,18 +821,32 @@
     function setSelectedButton(group, value) {
       const card = document.querySelector(`[data-group="${group}"]`);
       if (!card) return;
+      const otherInput = document.querySelector(`[data-other-input="${group}"]`);
+      if (otherInput) {
+        otherInput.hidden = true;
+        otherInput.value = "";
+        state.other[group] = "";
+      }
       card.querySelectorAll(".chip").forEach((button) => {
         button.classList.toggle("selected", button.textContent.trim() === value);
       });
     }
 
+    function getGroupValue(group) {
+      return state.other[group] || state[group];
+    }
+
     function updateSummary() {
       state.note = byId("customNote").value.trim();
-      const needsText = [...state.needs, state.note].filter(Boolean).join("、");
+      document.querySelectorAll("[data-other-input]").forEach((input) => {
+        state.other[input.dataset.otherInput] = input.hidden ? "" : input.value.trim();
+      });
+      const needs = state.needs.filter((item) => item !== "其他");
+      const needsText = [...needs, state.other.needs, state.note].filter(Boolean).join("、");
 
-      byId("summaryMain").textContent = state.main || "还没有选择";
-      byId("summaryDrink").textContent = state.drink || "还没有选择";
-      byId("summaryDessert").textContent = state.dessert || "还没有选择";
+      byId("summaryMain").textContent = getGroupValue("main") || "还没有选择";
+      byId("summaryDrink").textContent = getGroupValue("drink") || "还没有选择";
+      byId("summaryDessert").textContent = getGroupValue("dessert") || "还没有选择";
       byId("summaryNeeds").textContent = needsText || "等待补充";
       byId("loveLine").textContent = pick(loveLines);
     }
@@ -842,13 +874,34 @@
       card.querySelectorAll(".chip").forEach((button) => {
         button.addEventListener("click", () => {
           const value = button.textContent.trim();
+          const otherInput = card.querySelector(`[data-other-input="${group}"]`);
+          const isOther = button.dataset.otherTrigger === group;
+
           if (multiple) {
             button.classList.toggle("selected");
             state[group] = [...card.querySelectorAll(".chip.selected")].map((item) => item.textContent.trim());
+            if (isOther && otherInput) {
+              otherInput.hidden = !button.classList.contains("selected");
+              if (otherInput.hidden) {
+                otherInput.value = "";
+                state.other[group] = "";
+              } else {
+                otherInput.focus();
+              }
+            }
           } else {
             card.querySelectorAll(".chip").forEach((item) => item.classList.remove("selected"));
             button.classList.add("selected");
             state[group] = value;
+            if (otherInput) {
+              otherInput.hidden = !isOther;
+              if (isOther) {
+                otherInput.focus();
+              } else {
+                otherInput.value = "";
+                state.other[group] = "";
+              }
+            }
           }
           updateSummary();
         });
@@ -856,6 +909,9 @@
     });
 
     byId("customNote").addEventListener("input", updateSummary);
+    document.querySelectorAll("[data-other-input]").forEach((input) => {
+      input.addEventListener("input", updateSummary);
+    });
 
     byId("moodGrid").addEventListener("click", (event) => {
       const button = event.target.closest("[data-mood]");
@@ -900,8 +956,13 @@
       state.drink = "";
       state.dessert = "";
       state.needs = [];
+      state.other = { main: "", drink: "", dessert: "", needs: "" };
       state.note = "";
       document.querySelectorAll(".menu-card[data-group] .chip").forEach((button) => button.classList.remove("selected"));
+      document.querySelectorAll("[data-other-input]").forEach((input) => {
+        input.value = "";
+        input.hidden = true;
+      });
       byId("customNote").value = "";
       updateSummary();
       showToast("已经清空，可以重新点餐");
