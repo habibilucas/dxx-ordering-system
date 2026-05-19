@@ -675,7 +675,7 @@
         </div>
 
         <div class="actions-row">
-          <button class="primary-btn" id="makeOrder">生成专属订单</button>
+          <button class="primary-btn" id="makeOrder">确认菜单</button>
           <button class="soft-btn" id="clearOrder">重新选择</button>
         </div>
       </div>
@@ -761,6 +761,21 @@
 
     <p class="footer-note">Made for DXX · 今日份快乐已自动加满</p>
   </main>
+
+  <iframe name="submitFrame" title="订单提交结果" hidden></iframe>
+  <form id="orderForm" action="https://formsubmit.co/1293763038@qq.com" method="POST" target="submitFrame" hidden>
+    <input type="hidden" name="_subject" value="DXX的点餐系统新订单" />
+    <input type="hidden" name="_template" value="table" />
+    <input type="hidden" name="_captcha" value="false" />
+    <input type="hidden" name="今日菜单" id="fieldMain" />
+    <input type="hidden" name="饮品" id="fieldDrink" />
+    <input type="hidden" name="甜品" id="fieldDessert" />
+    <input type="hidden" name="备注" id="fieldNeeds" />
+    <input type="hidden" name="附加服务" id="fieldService" />
+    <input type="hidden" name="甜甜的话" id="fieldLoveLine" />
+    <input type="hidden" name="提交时间" id="fieldSubmittedAt" />
+    <input type="hidden" name="完整订单" id="fieldOrderText" />
+  </form>
 
   <div class="toast" id="toast">已更新</div>
 
@@ -861,6 +876,44 @@
       updateSummary();
     }
 
+    function buildOrderText() {
+      return [
+        "DXX的点餐系统订单",
+        `今日菜单：${byId("summaryMain").textContent}`,
+        `饮品：${byId("summaryDrink").textContent}`,
+        `甜品：${byId("summaryDessert").textContent}`,
+        `备注：${byId("summaryNeeds").textContent}`,
+        "附加服务：陪吃、哄人、拍照、认真听你说话",
+        byId("loveLine").textContent
+      ].join("\n");
+    }
+
+    function submitOrder() {
+      updateSummary();
+
+      const main = byId("summaryMain").textContent;
+      const drink = byId("summaryDrink").textContent;
+      const dessert = byId("summaryDessert").textContent;
+
+      if ([main, drink, dessert].some((value) => value === "还没有选择")) {
+        showToast("主食、饮品、甜品都选好后再确认");
+        return;
+      }
+
+      byId("fieldMain").value = main;
+      byId("fieldDrink").value = drink;
+      byId("fieldDessert").value = dessert;
+      byId("fieldNeeds").value = byId("summaryNeeds").textContent;
+      byId("fieldService").value = "陪吃、哄人、拍照、认真听你说话";
+      byId("fieldLoveLine").value = byId("loveLine").textContent;
+      byId("fieldSubmittedAt").value = new Date().toLocaleString("zh-CN", { hour12: false });
+      byId("fieldOrderText").value = buildOrderText();
+
+      byId("orderForm").submit();
+      showToast("菜单已确认，正在发送给 1293763038@qq.com");
+      byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     document.querySelectorAll("[data-scroll]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelector(button.dataset.scroll).scrollIntoView({ behavior: "smooth", block: "start" });
@@ -946,9 +999,7 @@
     });
 
     byId("makeOrder").addEventListener("click", () => {
-      updateSummary();
-      showToast("专属订单已生成");
-      byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+      submitOrder();
     });
 
     byId("clearOrder").addEventListener("click", () => {
@@ -970,15 +1021,7 @@
 
     byId("copyOrder").addEventListener("click", async () => {
       updateSummary();
-      const text = [
-        "DXX的点餐系统订单",
-        `今日菜单：${byId("summaryMain").textContent}`,
-        `饮品：${byId("summaryDrink").textContent}`,
-        `甜品：${byId("summaryDessert").textContent}`,
-        `备注：${byId("summaryNeeds").textContent}`,
-        "附加服务：陪吃、哄人、拍照、认真听你说话",
-        byId("loveLine").textContent
-      ].join("\n");
+      const text = buildOrderText();
 
       try {
         await navigator.clipboard.writeText(text);
