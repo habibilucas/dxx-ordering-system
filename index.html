@@ -753,6 +753,7 @@
           <h3>订单已收到</h3>
           <p id="loveLine">正在安排专属骑手 Luke 为你服务。本订单不可取消，因为我已经想见你了。</p>
           <div class="actions-row">
+            <button class="primary-btn" id="confirmOrder">确认菜单并发送</button>
             <button class="soft-btn" id="copyOrder">复制订单文案</button>
           </div>
         </aside>
@@ -999,6 +1000,10 @@
     });
 
     byId("makeOrder").addEventListener("click", () => {
+      submitOrder();
+    });
+
+    byId("confirmOrder").addEventListener("click", () => {
       submitOrder();
     });
 
