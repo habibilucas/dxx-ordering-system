@@ -772,7 +772,7 @@
             <button class="primary-btn" id="confirmOrder">确认菜单并发送</button>
             <button class="soft-btn" id="copyOrder">复制订单文案</button>
           </div>
-          <p class="submit-hint" id="submitHint" hidden>订单会直接写入 Google 表格。提交后如果网络较慢，可以稍后刷新表格查看。</p>
+          <p class="submit-hint" id="submitHint" hidden>订单会通过中转接口写入 Google 表格。提交后如果网络较慢，可以稍后刷新表格查看。</p>
         </aside>
       </div>
     </section>
@@ -783,6 +783,7 @@
   <div class="toast" id="toast">已更新</div>
 
   <script>
+    const ORDER_RELAY_ENDPOINT = "";
     const GOOGLE_SHEET_ENDPOINT = "https://script.google.com/macros/s/AKfycbz-eHvChujZd8PHrFz8Vq1IewcmtH58KfqaBl2R9EPBzhGso9KbdPMYBpy_5dyviE-9/exec";
 
     const state = {
@@ -916,25 +917,42 @@
         return;
       }
 
-      if (!GOOGLE_SHEET_ENDPOINT) {
+      const endpoint = ORDER_RELAY_ENDPOINT || GOOGLE_SHEET_ENDPOINT;
+
+      if (!endpoint) {
         byId("submitHint").hidden = false;
-        showToast("还未配置 Google 表格接收地址");
+        showToast("还未配置订单接收地址");
         byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
 
       try {
-        await fetch(GOOGLE_SHEET_ENDPOINT, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "text/plain;charset=utf-8"
-          },
-          body: JSON.stringify(payload)
-        });
-        byId("submitHint").textContent = "订单已提交到 Google 表格。如果网络较慢，可以稍后刷新表格查看。";
+        if (ORDER_RELAY_ENDPOINT) {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) {
+            throw new Error("Relay submit failed");
+          }
+        } else {
+          await fetch(endpoint, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+              "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(payload)
+          });
+        }
+        byId("submitHint").textContent = ORDER_RELAY_ENDPOINT
+          ? "订单已提交到中转接口，并将写入 Google 表格。如果网络较慢，可以稍后刷新表格查看。"
+          : "订单已提交到 Google 表格。如果当前设备无法访问 Google，建议配置中转接口。";
         byId("submitHint").hidden = false;
-        showToast("订单已提交到 Google 表格");
+        showToast(ORDER_RELAY_ENDPOINT ? "订单已提交到中转接口" : "订单已提交到 Google 表格");
         byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
       } catch (error) {
         byId("submitHint").textContent = "提交失败，请先复制订单文案备用。";
